@@ -1,0 +1,143 @@
+---
+title: "Week 1 - Gaussians"
+output:
+  html_document:
+    df_print: paged
+---
+
+## Paper
+
+Bromiley, P.A. (2018) Products and Convolutions of Gaussian Probability Density 
+Functions
+
+## Gaussian components
+
+First we want to see how gaussians are constructed. The formula for a gaussian 
+PDF is:
+$$f(x) = \frac{1}{\sqrt{2 \pi \sigma _f}} e^{-\frac{(x-\mu_f)^2}{2 \sigma_f^2}}$$
+We can break this into two components:
+$$a(x) = \frac{1}{\sqrt{2 \pi \sigma _f}}$$
+$$b(x) = e^{-\frac{(x-\mu_f)^2}{2 \sigma_f^2}}$$
+
+Let's plot those components and see what the pieces look like. 
+
+### a(x)
+We can see from the lack of dependence on $x$ that $a(x)$ will be constant:
+
+```{r}
+x <- -100:100
+
+fa <- function(x = NULL, sigma = 1, mu = 0) {
+  1 / (sqrt(2 * pi * sigma))
+}
+
+# Plot
+library(tidyverse)
+
+d <- data.frame(x, a = sapply(x, fa))
+
+ggplot(d, aes(x, a)) + geom_smooth() + theme_light()
+
+```
+
+### b(x)
+
+$b(x)$ also occurs in the sigmoid function, recognizable from psychometric 
+curves, so probably produces a curve. Let's plot it:
+
+```{r}
+fb <- function(x, sigma = 1, mu = 0) {
+  exponent <- (x - mu) ^ 2 / (2 * sigma ^ 2)
+  exp(1) ^ -exponent
+}
+
+d$b <- sapply(x, fb)
+
+ggplot(d, aes(x, b)) + geom_point() + theme_light()
+
+```
+
+#### Zoom in
+
+So the first thought is that our resolution is way off: values nearby 0 are the 
+only interesting ones, so let's zoom in on that area. 
+
+```{r}
+
+x <- seq(-10, 10, 0.1)
+d <- data.frame(x, a = sapply(x, fa), b = sapply(x, fb))
+
+ggplot(d, aes(x, b)) + geom_point() + theme_light()
+
+```
+
+That's looking pretty Gaussian now. So let's put it all together. 
+
+### Combined
+
+```{r}
+fg <- function(x, sigma = 1, mu = 0) {
+  fa(x, sigma, mu) * fb(x, sigma, mu)
+}
+
+d$g <- sapply(d$x, fg)
+
+ggplot(d) + 
+  geom_point(aes(x, b)) + 
+  geom_smooth(aes(x, a)) + 
+  geom_point(aes(x, g), color = "pink") +
+  theme_light()
+
+```
+
+The multiplication of each of the points has scaled the gaussian to peak at the 
+constant's value ($f(a)$). 
+
+## Combining gaussians
+
+We can use a similar method to observe what happens when we combine gaussians. 
+
+```{r}
+
+d$g2 <- sapply(x, function(x) fg(x) * fg(x))
+
+ggplot(d) + 
+  geom_point(aes(x, g), color = "pink") +
+  geom_point(aes(x, g2), color = "blue") +
+  theme_light()
+```
+
+Every point on the gaussian is reduced when it's squared (because all points are
+ < 1). This makes sense when we think in probability terms: to obtain contingent
+ probabilities we multiply the probabilities together. So our initial points are
+ the probabilities of some event, and the subsequent (blue) points are the 
+ probabilities of observing that event twice in succession.
+ 
+## Standard deviation
+
+The standard deviation ($\sigma$) is a key component of the distribution, and 
+it occurs in both the curve and the constant. Let's look at three values of 
+the standard deviation:
+
+```{r}
+d$sigLow <- sapply(d$x, fg, sigma = 0.1)
+d$sigHigh <- sapply(d$x, fg, sigma = 10)
+
+ggplot(d) + 
+  geom_point(aes(x, g), color = "pink") +
+  geom_line(aes(x, a), color = "pink") +
+  geom_point(aes(x, sigLow), color = "blue") +
+  geom_line(aes(x, fa(x, sigma = 0.1)), color = "blue") +
+  geom_point(aes(x, sigHigh), color = "darkgreen") +
+  geom_line(aes(x, fa(x, sigma = 10)), color = "darkgreen") +
+  theme_light()
+
+```
+
+As we already probably knew, the standard deviation is changing the sensitivity 
+of the curve, in terms of how evenly its values are distributed over the range 
+[-Infinity, Infinity]. 
+
+Notice also, though, that the standard deviation is scaling the curve's peak 
+using the constant part. So the gaussian consists of a curve and a constant 
+which controls the scaling. 
