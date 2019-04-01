@@ -1,0 +1,180 @@
+---
+title: "Week 1 - Information theory"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r prematter, include=F}
+library(tidyverse)
+library(knitr)
+set.seed(20190401)
+```
+
+## Paper
+
+Sims, C.R. (2016) Rate-distortion theory and human perception 
+[http://dx.doi.org/10.1016/j.cognition/2016.03.020](http://dx.doi.org/10.1016/j.cognition/2016.03.020)
+
+## Information theory
+
+This week we get an introduction to information theory, courtesy of Chris Sims, 
+placed in the context of rate-distortion theory of human perception.
+
+We start with some definitions:
+
+### Definitions
+
+* a **random variable** is a variable which can take on one of a (potentially 
+infinite) set of values
+
+* the potential values of a random variable are its **alphabet**
+
+* each value in the alphabet has an associated **probability**
+
+* given alphabets exhaustively cover possible values for the random variable,
+their associated probabilities sum to 1
+
+* the **surprise** we experience on observing the actual value of a random
+variable is characterised by the negative log of the probability associated
+with that outcome (negative log likelihood)
+
+We know that all probabilities are in the interval $[0, 1]$, meaning the values
+of surprise are in the interval $[0, \infty]$, with an inverse relationship
+between probability and surprise.
+
+### Entropy
+
+Entropy is (weighted) **average surprise**. So for an idealised fair coin, which
+has two possible outcomes (each with $P(x)=.5$ and $-\log P(x)=.693$), so the 
+entropy is also $.693$, because all outcomes are equally likely. 
+
+Similarly, with an idealised fair 6-sided die, we get the surprise for each
+outcome =$-log \frac{1}{6}$, or $1.792$.
+
+This should make sense, because predicting which of the six faces on the die
+will appear is inherently more difficult than prediciting which of the two
+faces of the coin will appear, hence each specific outcome for the die is
+more surprising, and hence the average surprise is higher.
+
+##### Unbalanced probabilities
+
+Consider next a class of students. Some do very well (A grade), some do very 
+poorly (C), and most do kinda okay (B):
+
+```{r genData}
+
+nKids <- 30 # class size
+
+kids <- data.frame(id = 1:nKids,
+                   ability = rnorm(nKids),
+                   performance = rnorm(nKids),
+                   grade = "A")
+
+# correlate abilty and performance
+kids$performance <- kids$performance + .3 * kids$ability
+
+# assign grades
+levels(kids$grade) <- LETTERS[1:3]
+kids$grade[kids$performance < 1] <- factor("B")
+kids$grade[kids$performance < -1] <- factor("C")
+
+grades <- table(kids$grade)
+grades
+```
+
+Grade can be our random variable, which we can use the empirical measurement of
+to determine the probabilities: 
+
+```{r}
+grades <- rbind(grades, table(kids$grade) / nKids)
+grades <- as.data.frame(t(grades))
+colnames(grades) <- c("n", "p")
+grades
+```
+
+We can thus calculate that the mean surprise as the negative log of each
+probability:
+
+```{r}
+grades <- cbind(grades, data.frame(s = -log(grades$p)))
+grades
+```
+
+and therefore the mean:
+
+```{r}
+mean(grades$s)
+```
+
+The entropy ($H$), however, is not simply the mean surprise, but it's the weighted
+mean surprise: we have to multiply each of our surprise values by the 
+probability that we will encounter that value:
+
+$$H(x) = -\sum_i P(x_i) \log P(x_i)$$
+
+```{r}
+sum(grades$s * grades$p)
+```
+
+### Units of entropy
+
+So far we've been using the natural logarithm (R's default), giving us entropy
+values in 'nat's. To get the entropy in the more standard 'bit's, we need to 
+use $\log _2$. 
+
+```{r}
+grades$sb <- -log2(grades$p)
+sum(grades$sb * grades$p)
+```
+
+### Measurement and prediction
+
+So far we've just been noting our surprise at any given outcome, and using these
+observations to determine the average surprise we could expect from the next
+(unknown) outcome (i.e. entropy). 
+
+We can also use this framework to describe how we use one variable to reduce the
+uncertainty of another. When we produced our class full of kids, we gave each
+one an *ability* score and a *performance* score, with a moderate correlation
+between them (.3). We then used the *performance* to assign *grades*, with 
+performance > 1sd being "A", (-1,1) being "B", and < -1 being "C".
+
+The distribution of grades thus predicts *ability*, but not completely. Some 
+kids given grade "C" have a higher ability than some given grade "A", for 
+example:
+
+```{r}
+
+ggplot(kids, aes(x = grade, y = ability, color = grade)) + 
+  stat_summary(geom = "point", fun.y = mean, size = 4, shape = 3) +
+  stat_summary(geom = "errorbar", fun.data = mean_se) +
+  geom_point(position = position_jitter(.15), color = "black") +
+  geom_hline(yintercept = -1, linetype = "dashed") +
+  geom_hline(yintercept = 1, linetype = "dashed") +
+  theme_light()
+
+```
+
+We can use information theory to quantify the effectiveness with which the
+assigned grade conveys information about the kid's ability score. The key
+observation is that some amount of information in the source (*ability score*)
+is present in measurement (*grade*, but we could also use *performance*).
+
+The quantity of information shared between the measurement and source is known
+as **mutual information**, and is formulated as the information in the source
+minus the conditional entropy of the measurement:
+
+$$I(x,y) = H(x) - H(x|y)$$
+
+$$I(x,y) = \sum _i \sum _j P(y_i|x_i)P(x_i) \log \frac{P(y_j|x_i)}{P(y_i)}$$
+It looks complicated. It's simpler when we understand conditional entropy:
+$$H(x|y)=\sum _j P(y_j)H(x|y=y_j)
+\\
+=-\sum _j P(y_i) \sum _i P(x_i|y_j) \log P(x_i|y_i)$$
+
+which quantifies the mean surprise we have in discovering that the source value
+is actually '$x$' (over all possible values of our measurement variable). The 
+mutual information is therefore calculated by multiplying the entropy of $x$ at
+each value in the alphabet of $y$, weighted by the assocated probability of that
+value. 
