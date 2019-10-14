@@ -1,0 +1,97 @@
+---
+title: "Week 6 - Doubly Distributional Population Codes"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r prematter, include=F}
+library(tidyverse)
+library(knitr)
+set.seed(20190401)
+```
+
+[output generated: `r Sys.time()`]
+
+## Paper
+
+Sahani, M., & Dayan, P. (2003). Doubly Distributional Population Codes: Simultaneous Representation of Uncertainty and Multiplicity. Neural Computation, 15(10), 2255–2279. [https://doi.org/10.1162/089976603322362356](https://doi.org/10.1162/089976603322362356)
+
+## Introduction
+
+Population coding is a broadly-accepted mechanism by which sensory data are represented in neurons. In population-coding, rather than having a single neuron represent a single feature of the world (c.f. 'grandmother neuron'), features of the world are represented by the joint activity of a specific subset of a population of neurons.
+
+The paper presents a model of population coding which can handle two distinct challenges simultaneously:
+
+* uncertainty
+
+  * noise throughout the system  
+  
+  * uncertainty inherent to the particular perceptual problem at hand, e.g. the [aperture problem](https://en.wikipedia.org/wiki/Motion_perception#/media/File:Aperture_problem_animated.gif) of motion perception
+  
+* multiplicity
+
+  * the population of neurons needs to code for multiple values of a single stimulus simultaneously
+  
+## Background
+
+The basic model of a neuronal representation of a stimulus starts with neurons with normally-distributed sensitivities to particular values of properties within their receptive fields. This is described in equation 1.1:
+$$ r_i \sim f_i (s) $$
+Where $r_i$ identifies a neuron and $f_i (s)$ identifies its function given a stimulus value (a normal distribution with a given mean/sd).
+
+You may be used to seeing these populations in figures like this: 
+
+```{r}
+library(tibble)
+library(ggplot2)
+
+tmp <- NULL
+for (n in -3:3) {
+  r <- NULL
+  for (i in 1:1000) {
+    x = runif(1, -pi, pi)
+    r <- rbind(r, tibble(n, x, y = dnorm(x, n)))
+  }
+  tmp <- rbind(tmp, r)
+}
+
+tmp$n <- factor(tmp$n)
+
+ggplot(tmp, aes(x = x, y = y, colour = n, fill = n)) + 
+  geom_line(aes(group = n)) +
+  theme_light()
+```
+
+These tuned neurons can then encode specific values across the population, even when we add in some noise on individual neurons:
+
+```{r}
+
+tmp <- NULL
+x <- 1.5
+for (cellFaveVal in seq(-3, 3, 0.5)) {
+  tmp <- rbind(tmp, tibble(cellFaveVal, y = dnorm(x, cellFaveVal) + runif(1, 0, 0.1)))
+}
+
+ggplot(tmp, aes(x = cellFaveVal, y = y, colour = factor(cellFaveVal), fill = factor(cellFaveVal))) + 
+  scale_x_continuous(limits = c(-pi, pi)) +
+  geom_point() +
+  annotate(geom = "point", x = x, y = 0, size = 2) +
+  theme_light()
+
+```
+
+### Problems
+
+Single-neurons tuned to particular values for a set $\text{r}=\{r_i\}$ from which the value of a stimulus is readily available. This model works well where simple stimuli are used, but cannot work where multiple values of a stimulus must be represented simultaneously. 
+
+#### Multiplicity
+
+Consider viewing overlapping transparent surfaces moving in different directions: if motion detection neurons $\text{r}$ are encoding the direction-of-motion of one layer at point A (ex hypothesi), they cannot also be encoding a different direction of motion of the other layer at point A. Naively, if the neuronal population were representing two opposite directions of motion, these should cancel out and leave the viewer perceiving no motion at point A, and yet we can perceive such stimuli without issue. 
+#### Uncertainty
+
+Various kinds of uncertainty are used to weight inferences when combining representations, and thus must be present in the representations, although how this is works on the simple model above is unclear. 
+
+## (singly) Distributional Population Code
+
+The problems of having to represent a great deal of information in our neuronal population can be eased by having the neurons encode a probability distribution rather than a single value. 
+

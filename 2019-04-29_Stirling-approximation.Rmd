@@ -1,0 +1,75 @@
+---
+title: "Week 6 - Doubly Distributional Population Codes"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r prematter, include=F}
+library(tidyverse)
+library(knitr)
+set.seed(20190429)
+```
+
+[output generated: `r Sys.time()`]
+
+## Paper
+
+MacKay, D.J.C (2005). Information Theory, Inference, and Learning Algorithms, Cambridge University Press.
+
+## Introduction
+
+We look at the derivation of Stirling's approximation on page 2.
+
+Start with a poisson distribution made up of a constant and a curve:
+
+```{r}
+
+m <- 50
+
+d <- tibble(x = 0:99, c = exp(1) ^ -m, v = (m ^ x) / factorial(x), y = c * v)
+
+ggplot(d, aes(x)) + 
+  geom_line(colour = "red", aes(y = c)) + 
+  geom_line(colour = "blue", aes(y = v)) +
+  labs(y = "")
+
+```
+
+Which together yield a scaled curve where the area under the curve is 1.
+
+```{r}
+ggplot(d, aes(x, y)) + geom_line(colour = "green") + labs(y = "p(x)")
+```
+
+We are told that this curve is approximately gaussian, at least around the mean. Let's see:
+
+```{r}
+
+d$g <- (1 / (sqrt(2 * pi * m))) * (exp(1) ^ -(((d$x - m) ^ 2) / (2 * m)))
+
+ggplot(d, aes(x, y)) + geom_line(colour = "green") + 
+  geom_line(aes(y = g), linetype = "dashed") +
+  labs(y = "p(x)")
+
+```
+
+Looks like a good approximation.
+
+The approximation of $m! \approx m^m e^{-m} \sqrt{2 \pi x}$ comes from simplifying at the point $x = m$, when the exponent of the gaussian ($-\frac{(r-m)^2}{2m}$) becomes equal to 0, meaning $e^0$ becomes 1.
+
+We can view the usefulness of this approximation:
+
+```{r}
+
+d2 <- tibble(x = 0:99, y = factorial(x), 
+             a = x^x * (exp(1)^-x) * sqrt(2 * pi * x))
+
+ggplot(d2, aes(x)) + 
+  geom_line(aes(y = log(y)), colour = "green") + 
+  geom_line(aes(y = log(a)), linetype = "dashed") + 
+  labs(y = "log(y); log(approx(y))")
+
+```
+
+We see both the reasonableness of the approximation, and the caveat that this breaks down for low x.

@@ -1,0 +1,54 @@
+---
+title: "Information Theory Chapter 1"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r prematter, include=F}
+library(tidyverse)
+library(knitr)
+set.seed(20190520)
+```
+
+[output generated: `r Sys.time()`]
+
+## Paper
+
+MacKay, D.J.C (2005). Information Theory, Inference, and Learning Algorithms, Cambridge University Press.
+
+## Introduction
+
+In this week we look at methods of encoding and decoding information which render it resistant to distortions. 
+
+Firstly, we establish a generic noise level of $f = 0.1$, where bits are flipped in our transmissions with that probability. MacKay tells us we want a disc that will flip no bits in its lifetime, reading and writing $10^12$ bits/day for 10 years, requring an error probability of $10^-15$ or lower. 
+
+In its lifetime, that drive will read and write somewhere between `(10 ^ 12) * 3650` and `(10 ^ 12) * 2 * 3653` bytes, meaning that an error probability of $10^-15$ is probably an *underestimate*!
+
+# Repetition codes
+
+Our first stab at reducing the impact of $f$ on our error rate is simply to send multiple copies of each bit. We send 3 copies of each bit, and the receiver takes the majority vote. Remember each bit has a probability of flipping of $f = 0.1$. This gives us a probability of $n$ bits being flipped of $f^n$:
+
+```{r}
+
+f <- 0.1 
+tibble(n = 1:3, f ^ n)
+
+```
+
+If 2 or more of these bits flip, we draw the wrong conclusion, meaning we draw the wrong conclusion with probability `f ^ 2 + f ^ 3`. 
+
+**Not true: the calculation above uses $f^2 + f^3$ as the probability, but there are 3 ways of getting exactly 2 bits flipped, or $3f^2 (1-f)$, plus the case where all three flip $f^3$, giving an actual probability of `3 * f * f * (1 - f) + f ^ 3`. More than we estimated, but still less than the original rate.**
+
+MacKay calculates this probability using Bayes theorem:
+$$P(s=1|r_1 r_2 r_3) = \frac{P(r_1 r_2 r_3|s=1)P(s=1)}{P(r_1 r_2 r_3)}$$
+
+We can ignore the base rate (denominator), and we'll set our prior to flat ($P(s=1)=0.5$). This means we simply need to know the combined probability of the received bits ($r_{1...3}$) being 1 given the bit being sent ($s$) is 1. We can calculate this probability by multiplying the probabilities of each bit:
+$$P(r_1 r_2 r_3|s) = \prod_{i = 1}^{3} P(r_i|t(s, f))$$
+Where $t$ is our transmission function which takes an input bit and a noise rate and returns a received bit. In this case 
+$$t(s, f) = \begin{cases}
+s,  & \text{if}\; \mathcal{U}(0, 1) >= f \\
+1-s, & \text{otherwise}
+\end{cases}$$ 
+
+$P(r_i=s|t(s,f)) = 1 - f$, so 

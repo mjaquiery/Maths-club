@@ -1,0 +1,318 @@
+---
+title: "Matrices"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r prematter, include=F}
+library(knitr)
+library(testthat)
+
+set.seed(20191014)
+```
+
+[output generated: `r Sys.time()`]
+
+## Paper
+
+https://www.fil.ion.ucl.ac.uk/~wpenny/course/matrices.pdf
+
+## Introduction
+
+This week we cover matrices. What they are, how to operate with them, and some common properties they have. My objective here is to reproduce the examples in basic R.
+
+## Transposes and Inner Produces
+
+Vectors can be row vectors (by default in r, but not in math):
+
+```{r}
+xt <- 1:3
+
+xt
+```
+
+They can also be column vectors (the default in math):
+
+```{r 2.1}
+y <- data.frame(y = 1:3)
+
+y
+```
+
+We can also use the transpose function to convert a row to a column vector and vice versa. Because this will also work for matrices, we'll write our own version. Note that once we've verified this works we'll go back to using the inbuilt transpose because it's many orders of magnitude faster than our implementation.
+
+```{r 2.2}
+
+#' Transpose a matrix 
+#' @param m matrix to transpose
+#' @return transpose of m
+transpose <- function(m) {
+  mt <- matrix(nrow = ncol(m), # transpose rows = original columns 
+               ncol = nrow(m)) # transpose columns = original rows
+  
+  for (r in 1:nrow(mt)) {
+    for (c in 1:ncol(mt)) { # kids, don't override functions ;)
+      mt[r, c] <- m[c, r]   # mij -> m'ji in math notation which we'll use later
+    }
+  }
+  
+  mt
+}
+
+# we can use unit testing to ensure our transpose function produces the same
+# output as the inbuilt function.
+# If nothing happens, that's good. If it fails we'll get an error.
+expect_equivalent(transpose(y), t(y))
+
+# we'll also test a randomly generated matrix
+rmat <- matrix(runif(100), 10, 10)
+expect_equal(transpose(rmat), t(rmat))
+
+# we actually need to do some transposition to undo the default transposition r
+# does when converting a simple vector to a dataframe!
+xt <- transpose(
+  as.data.frame(xt)
+)
+
+transpose(y) 
+
+```
+
+### Inner product
+
+The _inner product_ of two vectors is a single value (a _scalar_). This is calculated as the sum of the nth element in each vector. 
+
+```{r 2.3}
+
+#' Return the inner product of two vectors
+#' @param v1 row vector
+#' @param v2 column vector
+#' @return scalar with the inner product
+innerProd <- function(v1, v2) {
+  
+  if (!ncol(v1) || nrow(v1) > 1) {
+    stop('V1 must be a row vector')
+  }
+  if (!nrow(v2) || ncol(v2) > 1) {
+    stop('V2 must be a column vector')
+  }
+  
+  if (ncol(v1) != nrow(v2)) {
+    stop('Vector lengths must be equal to calculate the inner product.')
+  }
+  
+  total <- 0
+  
+  for (i in 1:length(v1)) {
+    increment <- v1[1, i] * v2[i, 1]  # calculate the products at each location
+    total <- total + increment        # and add them all together
+  }
+  
+  total
+}
+
+innerProd(xt, y)
+
+# this should produce the same result if we switch the arguments and transpose
+# to keep row/column definitions:
+expect_equivalent(innerProd(xt, y), innerProd(t(y), t(xt)))
+
+```
+
+### Outer product
+
+The _outer product_ of two vectors produces a matrix by multiplying each value of one vector by each value of the other.
+
+```{r 2.4}
+
+#' Return the outer product of two vectors
+#' @param v1 row vector
+#' @param v2 column vector
+#' @return matrix with the outer product
+outerProd <- function(v1, v2) {
+  
+  if (!ncol(v1) || nrow(v1) > 1) {
+    stop('V1 must be a row vector')
+  }
+  if (!nrow(v2) || ncol(v2) > 1) {
+    stop('V2 must be a column vector')
+  }
+  
+  op <- matrix(nrow = nrow(v2), # rows will be taken from v2
+               ncol = ncol(v1)) # cols will be taken from v1
+  
+  for (i in 1:nrow(v2)) {       # i for row, j for col is math notation
+    for (j in 1:ncol(v1)) {
+      op[i, j] <- v1[1, i] * v2[j, 1] 
+    }
+  }
+  
+  op
+}
+
+outerProd(xt, y)
+
+```
+
+### Symmetry 
+
+Matrices can be transposed just like vectors (our function above works for both), by switching the row and column indices for each element. A symmetric matrix is equal to its own transpose (i.e. it is symmetrical around the top-left to bottom-right diagonal). 
+
+```{r 2.6}
+
+# diagonal matrices are always symmetric (we may have to prove this later)
+sym <- matrix(0, 10, 10)
+diag(sym) <- 1
+
+sym
+
+#' Return symmetry of a matrix
+#' @param m matrix to check for symmetry
+#' @return boolean indicating whether matrix is symmetric
+isSym <- function(m) {
+  
+  for (i in 1:nrow(m)) {
+    for (j in 1:ncol(m)) {
+      if (m[i, j] != m[j, i] &                  # this is the key test
+          is.na(m[i, j]) == is.na(m[j, i])) {   # r does weird logic with NAs
+        return(F)   # symmetric matrix would have Aij = Aji
+      }
+    }
+  }
+  
+  T   # passed all checks, we can go ahead
+}
+
+isSym(sym)
+
+expect_equal(isSym(sym), isSymmetric(sym))
+```
+
+### Matrix multiplication
+
+We can multiply matrices together provided the number of columns in the first equals the number of rows in the second. The result will be a matrix with dimensions given by the non-(necessarily-)equal dimensions.
+
+```{r 2.7}
+
+#' Return the product of two matrices
+#' @param m1 matrix from which row count of product will be taken
+#' @param m2 matrix from which col count of product will be taken
+#' @return matrix with the product of m1 and m2
+prod <- function(m1, m2) {
+  if (ncol(m1) != nrow(m2)) {
+    stop('Number of columns in m1 must equal number of rows in m2.')
+  }
+  
+  product <- matrix(nrow = nrow(m1), # inherit dimensions appropriately 
+                    ncol = ncol(m2))
+  
+  for (i in 1:nrow(m1)) {
+    for (j in 1:ncol(m2)) {
+      # take the inner product for ith row in m1 and jth column in m2
+      product[i, j] <- innerProd(t(m1[i, ]), as.data.frame(m2[, j]))
+    }
+  }
+  
+  product
+}
+
+# textbook examples
+A <- t(data.frame(
+  x = c(2, 3, 4),
+  y = c(5, 6, 7)
+))
+
+B <- t(data.frame(
+  x = c(1, 3, 7, 2),
+  y = c(4, 3, 4, 1),
+  z = c(5, 6, 4, 2)
+))
+
+prod(A, B)
+
+# We can also test the purported properties:
+
+# Associative
+C <- t(data.frame(
+  x1 <- 1:4,
+  x2 <- 1:4,
+  x3 <- 1:4,
+  x4 <- 1:4
+))
+expect_equal(prod(prod(A, B), C), prod(A, prod(B, C)))
+
+# Distributive
+C <- t(data.frame(
+  x1 <- 1:4,
+  x2 <- 1:4,
+  x3 <- 1:4
+))
+expect_equal(prod(A, B + C), prod(A, B) + prod(A, C))
+
+# Non-commutative
+expect_error(prod(B, A))
+
+```
+
+## Covariance matrices
+
+This is where things really get interesting from a psychology/stats perspective. We deal with covariance matrices a lot (even if we don't know we're doing it). 
+
+We remind ourselves that we calculate the covariance between two variables ($x$ and $y$) when we have the same number of observations ($N$) for each variable by:
+
+$$\sigma_{xy} = \frac{1}{N - 1}\sum_{i=1}^{N}{(x_i - \bar{x})(y_j - \bar{y})}$$
+In other words we're quantifying the extent to which $x$ moves away from the mean at the same time and in the same direction as $y$ does.
+
+Now, where we have a matrix of $N$ observations of $p$ variables, we can apply this formula to each pair of variables. This operation is essentially the inner product of one variable's observations expressed as a row vector and the other variable's observations expressed as a column vector. 
+
+Inner product:
+$$\sum_{i=1}^{N}{x_i y_i}$$
+In the special case where the variables have 0 mean ($\bar{x}=0$, $\bar{y}=0$ as with standardised variables), the inner product needs only a tiny adjustment to equal the covariance:
+
+$$\sigma_{xy} = \frac{1}{N - 1}\sum_{i=1}^{N}{x_i y_j}$$
+
+Now, note that in a $N$x$p$ matrix with $N$ observations of $p$ variables, the covariance matrix will always be symmetric ($\sigma_{xy} = \sigma_{yx}$), and that we needed to express one variable's observations as a row vector and the other's as a column vector. Well, thanks to these properties we can multiply the transpose of the observation matrix ($p$x$N$) by the observation matrix itself ($N$x$p$), to give us a $p$x$p$ covariance matrix! (...technically it gives us the sum and we simply divide by N-1 to get the covariance)
+
+$$C = \frac{1}{N-1}X^TX$$
+
+Now that's mathmagical!
+
+```{r 2.13}
+
+# we'll use the attitudes dataset for this example
+round(cov(attitude))
+
+at <- scale(attitude)   # we can't use our merry shorthand without normalising
+expect_equivalent(cov(at), prod(t(at), at) / (nrow(at) - 1))
+
+```
+
+## Diagonal matrices
+
+Diagonal matrices are matrices in which the value of all cells is 0 except along the diagonal. Thus it satifies the constraint:
+
+$$M_{i, j \ne i} = 0$$
+
+The shorthand can thus be expressed as a vector of the diagonal entries only. This is indeed how r behaves:
+
+```{r 2.17}
+
+diag(round(cov(attitude)))
+
+```
+
+What's the diagonal of a covariance matrix? It's the covariance of a variable with itself, which is the square of its standard deviation, i.e. its variance. 
+
+$$\sigma{i,i} = \sigma_i^2$$
+
+Why is this diagonal 1 in all the covariance matrices we look at ever? Well, for a standardised variable, the standard deviation is 1, which means the variance ($\sigma^2$) = $1^2$ = $1$, as we can see with the diagonal of the standardised attidue variable.
+
+
+```{r}
+
+diag(cov(at))
+
+```
+
+Because a diagonal matrix has 0s in non-diagonal cells, it acts as a mask ensuring that the product of a diagonal matrix and any other matrix will be a diagonal matrix (although its dimensions need not be equal!). 
