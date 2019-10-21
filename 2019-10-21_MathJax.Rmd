@@ -1,0 +1,132 @@
+---
+title: "MathJax introduction"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r prematter, include=F}
+library(knitr)
+library(testthat)
+
+set.seed(20191014)
+```
+
+[output generated: `r Sys.time()`]
+
+# Introduction
+
+We often need to put mathematical equations in documents. While some document editing software packages have their own solutions to this (e.g. Microsoft Word's Insert > Equation system), the de facto standard is [MathJax](https://www.mathjax.org/), which uses $\LaTeX$-style markup. This can be done out-of-the-box in RStudio's Rmarkdown files (which can then be published as HTML or PDF files), or in other online documents (e.g. a blog) by adding one line of HTML. 
+
+## HTML Integration
+
+To add MathJax to your web document, you can include the MathJax code from their content distribution network:
+
+```{HTML}
+<!-- Polyfill adds support for older browsers-->
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  
+<!-- Fetch MathJax script from the CDN (the line you actually need) -->
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+```
+
+## Entering $\LaTeX$, $ and $$
+
+In RMarkdown you can use \$ ... \$ to encapsulate $\LaTeX$ input, including math markup. You can also use \$ \$ ... \$ \$, which will print the result on a new line, making equations stand out from inline text.
+
+## Syntax basics
+
+$\LaTeX$ uses a fairly straightforward syntax where commands are prefixed with a backslash (\\) and arguments are supplied in braces ({...}). Superscript (`x^{10}` $\rightarrow$  $x^{10}$) and subscript (`$x_{ij}$` => $x_{ij}$) do not need backslash prefixes (and if you only have one character in the sub/superscript they don't need braces, either: `$x^2$` $\rightarrow$  $x^2$). Anything that isn't a command will just get written out as it is: `$abc123$` $\rightarrow$ $abc123$. Finally, just to keep things awkward, some commands have optional arguments specified using square brackets, notably the `\sqrt` command: `$\sqrt[3]{81}$` $\rightarrow$ $\sqrt[3]{81}$.
+
+Some particularly complex commands have their own internal syntax and are defined by `$\begin{command}... \end{command}$` as with matrices, where column breaks are separated with `&` and row breaks with `\\`: `$\begin{bmatrix} a & b \\ c & d + e \end{bmatrix}$` $\rightarrow$ $\begin{bmatrix} a & b \\ c & d + e \end{bmatrix}$.
+
+## Examples
+
+```{mathjax}
+$$\overline{x} = \frac{1}{n} \sum_{i=1}^n x_i$$
+```
+
+$$\overline{x} = \frac{1}{n} \sum_{i=1}^n x_i$$
+
+```{mathjax}
+This equation tells us that the mean of $x$ ($\overline{x}$) is obtained by dividing the sum of all of the items in $x$ ($x_{i=1}... x_{i=n}$) by $n$, the number of items in $x$.
+```
+
+This equation tells us that the mean of $x$ ($\overline{x}$) is obtained by dividing the sum of all of the items in $x$ ($x_{i=1}... x_{i=n}$) by $n$, the number of items in $x$.
+
+MathJax collapses spaces and newlines so we can use them to make the markup easier to read and write:
+
+```{mathjax}
+$$
+\begin{pmatrix}
+a \\ 
+b \\
+c \\
+\cdots
+\end{pmatrix}^T
+=
+\begin{pmatrix}
+a & b & c & \cdots
+\end{pmatrix}
+$$
+```
+
+$$
+\begin{pmatrix}
+a \\ 
+b \\
+c \\
+\cdots
+\end{pmatrix}^T
+=
+\begin{pmatrix}
+a & b & c & \cdots
+\end{pmatrix}
+$$
+
+If we want to include whitespace in the actual equations it's more complicated, but you can find out how [here]( https://math.meta.stackexchange.com/questions/5020/mathjax-basic-tutorial-and-quick-reference).
+
+## Cheatsheets
+
+A good cheatsheet for basics: https://davidhamann.de/2017/06/12/latex-cheat-sheet/
+
+A slightly more involved one including matrices and cases: https://jojozhuang.github.io/blog/2018/09/11/mathjax-cheat-sheet-for-mathematical-notation/
+
+My go-to cheatsheet, very dense but thorough: https://math.meta.stackexchange.com/questions/5020/mathjax-basic-tutorial-and-quick-reference
+
+## Exercises
+
+Using the cheatsheets, have a go at producing the following yourself:
+
+Einstein's special relativity equation:
+$$E = MC^2$$
+
+Euler's identity equation:
+$$e^{ix}=\cos{x}+i\sin{x}$$
+
+The normal distribution:
+$$f(x|\mu,\sigma^2) = \frac{1}{\sqrt{2\pi\sigma^2}}e^{-\frac{(x-\mu)^2}{2\sigma^2}}$$
+
+Matrix dot product:
+$$
+\begin{bmatrix}
+1 & 2 & 3 \\ 4 & 5 & 6
+\end{bmatrix}
+\begin{bmatrix}
+7 & 8 \\ 9 & 10 \\ 11 & 12
+\end{bmatrix}
+=
+\begin{bmatrix}
+58 & 64 \\ 139 & 154
+\end{bmatrix}
+$$
+
+
+
+### Answers
+
+You can find the entire source of this document in the [GitHub repository](). Even cooler, if you right-click on an equation, you can see the code that generates it (Show Math As > TeX Commands). This will work out in the wild, too (but not for PDF files).
+
+## MathJax 
+
+[MathJax](https://www.mathjax.org/) itself is a well-maintained open-source project funded by NumFOCUS.
